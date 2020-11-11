@@ -33,13 +33,13 @@ public class UnitTests extends PApplet {
 		Character[] myList = {'a', 'b', 'r', 'a', 'c', 'a', 'd', 'a', 'b', 'r', 'a'};
 		testList = new ArrayList(Arrays.asList(myList));
 		System.out.println("------------------------------");
-		System.out.println("abracadabra: PST L=3 Pmin=0.1");
+		System.out.println("abracadabra: PST L=3 Pmin=0.1 R=1.5");
 		System.out.println("------------------------------");
-		trainP5(3, 0.1);
+		trainP5(3, 0.1, 1.5);
 		System.out.println("------------------------------");
-		System.out.println("abracadabra: PST L=3 Pmin=0.15");
+		System.out.println("abracadabra: PST L=3 Pmin=0.15 R=2.0");
 		System.out.println("------------------------------");
-		trainP5(3, 0.15);
+		trainP5(3, 0.15, 2.0);
 	}
 	
 	void P5UnitTest2() {	// Project 5: Unit Test 2
@@ -47,13 +47,13 @@ public class UnitTests extends PApplet {
 		Character[] myList = {'a', 'c', 'a', 'd', 'a', 'a', 'c', 'b', 'd', 'a'};
 		testList = new ArrayList(Arrays.asList(myList));
 		System.out.println("------------------------------");
-		System.out.println("acadaacbda: PST L=3 Pmin=0.1");
+		System.out.println("acadaacbda: PST L=3 Pmin=0.1 R=1.5");
 		System.out.println("------------------------------");
-		trainP5(3, 0.1);
+		trainP5(3, 0.1, 1.5);
 		System.out.println("------------------------------");
-		System.out.println("acadaacbda: PST L=3 Pmin=0.15");
+		System.out.println("acadaacbda: PST L=3 Pmin=0.15 R=2.0");
 		System.out.println("------------------------------");
-		trainP5(3, 0.15);
+		trainP5(3, 0.15, 2.0);
 	}
 	
 	void P5UnitTest3() {	// Project 5: Unit Test 3
@@ -61,34 +61,34 @@ public class UnitTests extends PApplet {
 		Character[] myList = {'a', 'b', 'c', 'c', 'c', 'd', 'a', 'a', 'd', 'c', 'd', 'a', 'a', 'b', 'c', 'a', 'd', 'a', 'd'};
 		testList = new ArrayList(Arrays.asList(myList));
 		System.out.println("------------------------------");
-		System.out.println("abcccdaadcdaabcadad: PST L=3 Pmin=0.1");
+		System.out.println("abcccdaadcdaabcadad: PST L=3 Pmin=0.1 R=1.5");
 		System.out.println("------------------------------");
-		trainP5(3, 0.1);
+		trainP5(3, 0.1, 1.5);
 		System.out.println("------------------------------");
-		System.out.println("abcccdaadcdaabcadad: PST L=3 Pmin=0.15");
+		System.out.println("abcccdaadcdaabcadad: PST L=3 Pmin=0.15 R=2.0");
 		System.out.println("------------------------------");
-		trainP5(3, 0.15);
+		trainP5(3, 0.15, 2.0);
 	}
 	
 	void P5UnitTest4() {	// Project 5: Unit Test 4
 		// 4. Suffix tree output for: Mary Had a Little Lamb (the midi file -- only the pitches are required)
 		System.out.println("------------------------------");
-		System.out.println("Mary Had a Little Lamb Pitches: PST L=3 Pmin=0.1");
+		System.out.println("Mary Had a Little Lamb Pitches: PST L=3 Pmin=0.1 R=1.5");
 		System.out.println("------------------------------");
-		pitchTree = new Tree<Integer>(3, 0.1);
+		pitchTree = new Tree<Integer>(3, 0.1, 1.5);
 		pitchTree.train(midiNotes.getPitchArray());
 		pitchTree.print();
 		System.out.println("------------------------------");
-		System.out.println("Mary Had a Little Lamb Pitches: PST L=3 Pmin=0.15");
+		System.out.println("Mary Had a Little Lamb Pitches: PST L=3 Pmin=0.15 R=2.0");
 		System.out.println("------------------------------");
-		pitchTree = new Tree<Integer>(3, 0.15);
+		pitchTree = new Tree<Integer>(3, 0.15, 2.0);
 		pitchTree.train(midiNotes.getPitchArray());
 		pitchTree.print();
 	}
 	
 
-	void trainP5(int i, double k) {
-		charTree = new Tree<Character>(i, k);
+	void trainP5(int i, double k, double r) {
+		charTree = new Tree<Character>(i, k, r);
 		charTree.train(testList);
 		charTree.print();
 	}

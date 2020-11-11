@@ -22,28 +22,30 @@ public class Tree<T> {
 		Pmin = 0.1;
 	}
 	
-	Tree(int i, double k) {
+	Tree(int i, double k, double rVal) {
 		root = new Node<T>();
 		L = i; // input parameter chooses L
 		Pmin = k;
+		r = rVal;
 	}
 		
 	// creates the unique token sequences from the input & using the root, adds them to the tree
 	void train(ArrayList<T> input) {
 		for(int i = 1; i <= L ; i++) { // i = order #
 			for(int j = 0; j < input.size() - (i - 1); j++) { // j = index into input
+				boolean hasSeqAtEndOfDataset = !(j < input.size() - (i - 1)); // set the hasSeqAtEndOfDataset of theNewNode (also can be in constructor like above)
+
 				ArrayList<T> curSequence = new ArrayList<T>(input.subList(j, j + i));	// curSequence = find the current sequence of size i			
-				newNode = new Node<T>(curSequence); // create a new node with the current sequence
-				// & the next token
-				// set the hasSeqAtEndOfDataset of theNewNode (also can be in constructor like above)
+				newNode = new Node<T>(curSequence, hasSeqAtEndOfDataset); // create a new node with the current sequence & the next token
 				root.addNode(newNode);
 			}
 		}
+		root.train(input);
 		// sum the total tokens in the input here (totalInputTokens) -- this is most easily
 		// done similarly to how we summed our total tokens in the ProbabilityGenerator.
 		totalInputTokens = input.size();
 		root.pMinElimination(totalInputTokens, Pmin);
-		// root.rElimination( r, null );
+		root.rElimination(r, root);
 	}
 
 	// calls the root to print
