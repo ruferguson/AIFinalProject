@@ -33,8 +33,7 @@ public class Tree<T> {
 	void train(ArrayList<T> input) {
 		for(int i = 1; i <= L ; i++) { // i = order #
 			for(int j = 0; j < input.size() - (i - 1); j++) { // j = index into input
-				boolean hasSeqAtEndOfDataset = !(j < input.size() - (i - 1)); // set the hasSeqAtEndOfDataset of theNewNode (also can be in constructor like above)
-
+				boolean hasSeqAtEndOfDataset = j + i == input.size(); // set the hasSeqAtEndOfDataset of theNewNode (also can be in constructor like above)
 				ArrayList<T> curSequence = new ArrayList<T>(input.subList(j, j + i));	// curSequence = find the current sequence of size i			
 				newNode = new Node<T>(curSequence, hasSeqAtEndOfDataset); // create a new node with the current sequence & the next token
 				root.addNode(newNode);
