@@ -28,11 +28,12 @@ public class Node<T> extends ProbabilityGenerator<T> {
 		count = 1;
 	}
 	
-	Node(ArrayList<T> curSequence, boolean atEnd) {
+	Node(ArrayList<T> curSequence, boolean atEnd, T nextT) {
 		children = new ArrayList<Node>();
 		tokenSequence = curSequence;
 		count = 1;
 		hasSeqAtEndOfDataset = atEnd;
+		nextToken = nextT;
 	}
 	
 	ArrayList<T> getTokenSeq() {
@@ -65,6 +66,12 @@ public class Node<T> extends ProbabilityGenerator<T> {
 	
 	public T getToken(int index) {
 		return alphabet.get(index);
+	}
+	
+	public ArrayList<T> getNextToken() {
+		ArrayList<T> nextTokenArray = new ArrayList<T>();
+		nextTokenArray.add(nextToken);
+		return nextTokenArray;
 	}
 	
 	// Adds a child node. Will only add a child node if the input node contains this node as a suffix.
@@ -171,8 +178,8 @@ public class Node<T> extends ProbabilityGenerator<T> {
 			//System.out.println("root alphabet: " + myRoot.getAlphabet());
 
 			// Find the r of this node
-			//System.out.println("alpha counts: " + super.getAlphabetCounts());
-			//System.out.println("alphabet: " + super.getAlphabet());
+			System.out.println("alpha counts: " + super.getAlphabetCounts());
+			System.out.println("alphabet: " + super.getAlphabet());
 			
 			double myRatio = (double) Collections.max(getAlphabetCounts()) / super.getTotal();
 			//System.out.println("collections.max: " + Collections.max(getAlphabetCounts()) + " getTotal: " + getTotal());
@@ -180,10 +187,10 @@ public class Node<T> extends ProbabilityGenerator<T> {
 			//Find the conditional probabilities for the root.
 			int index = alphabet_counts.indexOf(Collections.max(getAlphabetCounts())); // the corresponding count in myRoot of the token with the max counts from above
 			
-			//System.out.println("index: " + index);
+			System.out.println("index: " + index);
 			//System.out.println("root alpha counts: " + myRoot.getAlphabetCounts());
-			//System.out.println("root alphabet: " + myRoot.getAlphabet());
-			
+			System.out.println("root alphabet: " + myRoot.getAlphabet());
+			System.out.println(alphabet.get(index));
 			double rootRatio = (double) myRoot.getCountsAtToken(alphabet.get(index)) / myRoot.getTotal(); // myRoot’s total (the total # input tokens from myRoot’s super class)
 			//System.out.println("getCountsAtToken(): " + myRoot.getCountsAtToken(alphabet.get(index)) + " roottotal: " + myRoot.getTotal());
 			
@@ -222,11 +229,13 @@ public class Node<T> extends ProbabilityGenerator<T> {
 	
 	// keeps track of probability distribution of the next tokens 
 	void trainViaProbGen(Node<T> node) {
-		super.train(node.getTokenSeq());
+		super.train(getNextToken());
 	}
 	
 	// given a token, return the # of times it has appeared after the node’s tokenSequence
 	double getCountsAtToken(T token) {
+		System.out.println(token);
+		System.out.println(alphabet);
 		int index = alphabet.indexOf(token);
 		return alphabet_counts.get(index);
 	}
