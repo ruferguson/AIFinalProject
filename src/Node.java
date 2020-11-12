@@ -93,16 +93,14 @@ public class Node<T> extends ProbabilityGenerator<T> {
 				}
 			}
 			// Did one your child nodes add the node?
-			if (!found && (node.getTokenSeq()).size() - 1 == tokenSequence.size()) { //	 If NOT found and the length of node’s tokenSequence is one less than this tokenSequence     && !node.isSeqAtEndOfDataset()
+			if (!found && (node.getTokenSeq()).size() - 1 == tokenSequence.size() && !node.isSeqAtEndOfDataset()) { //	 If NOT found and the length of node’s tokenSequence is one less than this tokenSequence
 				children.add(node);	//	Add the node to our children array.
 				found = true;
 				if (!node.isSeqAtEndOfDataset()) {
 					node.trainViaProbGen(node);
-					
-					//System.out.println("node token seq: " + node.getTokenSeq() + " node alphabet: " + node.alphabet);
 				}
 			}
-		}
+		}	
 		return found;
 	}
 	
@@ -172,35 +170,17 @@ public class Node<T> extends ProbabilityGenerator<T> {
 	
 	// performs elimination based on the R-values. Returns whether to delete this node or not. The parent node performs the deletion
 	boolean rElimination(double r, Node<T> myRoot) {
-
 		boolean shouldRemove = tokenSequence.size() > 1; // the size of the tokenSequence is greater than 1
 		if(shouldRemove) {
-			//System.out.println("root alphabet: " + myRoot.getAlphabet());
-
 			// Find the r of this node
-			System.out.println("alpha counts: " + super.getAlphabetCounts());
-			System.out.println("alphabet: " + super.getAlphabet());
-			
-			double myRatio = (double) Collections.max(getAlphabetCounts()) / super.getTotal();
-			//System.out.println("collections.max: " + Collections.max(getAlphabetCounts()) + " getTotal: " + getTotal());
+			double myRatio = (double) Collections.max(super.getAlphabetCounts()) / super.getTotal();
 
 			//Find the conditional probabilities for the root.
 			int index = alphabet_counts.indexOf(Collections.max(getAlphabetCounts())); // the corresponding count in myRoot of the token with the max counts from above
-			
-			System.out.println("index: " + index);
-			//System.out.println("root alpha counts: " + myRoot.getAlphabetCounts());
-			System.out.println("root alphabet: " + myRoot.getAlphabet());
-			System.out.println(alphabet.get(index));
-			double rootRatio = (double) myRoot.getCountsAtToken(alphabet.get(index)) / myRoot.getTotal(); // myRoot’s total (the total # input tokens from myRoot’s super class)
-			//System.out.println("getCountsAtToken(): " + myRoot.getCountsAtToken(alphabet.get(index)) + " roottotal: " + myRoot.getTotal());
-			
-			System.out.println("my ratio: " + myRatio + " rootRatio: " + rootRatio);
+			double rootRatio = (double) myRoot.getCountsAtToken(alphabet.get(index)) / myRoot.getTotal(); // myRoot’s total (the total # input tokens from myRoot’s super class)			
 			
 			this_r = myRatio / rootRatio;
 			shouldRemove = this_r < r;
-			
-			System.out.println("token sequence: " + tokenSequence + " this r: " + this_r + " r: " + r);
-			System.out.println("");
 		}
 		if (!shouldRemove) { // if we should NOT remove this node 
 			for (int i = children.size() - 1; i >= 0; i--) { //for each node (start from the end & go to the front of each array):
@@ -229,13 +209,11 @@ public class Node<T> extends ProbabilityGenerator<T> {
 	
 	// keeps track of probability distribution of the next tokens 
 	void trainViaProbGen(Node<T> node) {
-		super.train(getNextToken());
+		super.train(node.getNextToken());
 	}
 	
 	// given a token, return the # of times it has appeared after the node’s tokenSequence
 	double getCountsAtToken(T token) {
-		System.out.println(token);
-		System.out.println(alphabet);
 		int index = alphabet.indexOf(token);
 		return alphabet_counts.get(index);
 	}
