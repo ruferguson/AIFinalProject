@@ -28,6 +28,10 @@ public class AIFinalProject extends PApplet {
 	
 	String filePath;
 
+	Tree<Integer> pitchTree;
+	Tree<Character> charTree;
+	ArrayList<Character> testList;
+	
 	public static void main(String[] args) {
 		PApplet.main("AIFinalProject"); 
 	}
@@ -55,6 +59,21 @@ public class AIFinalProject extends PApplet {
 		// play the midi notes as they are in the file
 		player.setMelody(midiNotes.getPitchArray());
 		player.setRhythm(midiNotes.getRhythmArray());
+		
+		/*
+		// R-Elimination Quiz check
+		Character[] myList = {'g', 'g', 'g', 'e', 'f', 'f', 'f', 'd', 'g', 'g', 'g', 'e', 'a', 'a', 'a', 'g', 'e', 'e', 'e', 'c', 'g', 'g', 'g', 'd', 'g', 'f', 'f', 'f', 'd', 'g', 'g', 'f', 'e', 'g', 'g', 'f', 'e', 'g', 'g', 'f', 'e', 'c', 'g'};
+		testList = new ArrayList(Arrays.asList(myList));
+		System.out.println("------------------------------");
+		for (int i = 0; i < myList.length; i++) {
+			System.out.print(myList[i]);
+		}
+		System.out.println(": L=3  Pmin=0.05 R=1.25");
+		System.out.println("------------------------------");
+		charTree = new Tree<Character>(3, 0.05, 1.25);
+		charTree.train(testList);
+		charTree.print();
+		*/
 	}
 
 	public void draw() {

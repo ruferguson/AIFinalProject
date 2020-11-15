@@ -40,6 +40,7 @@ public class UnitTests extends PApplet {
 		System.out.println("abracadabra: PST L=3 Pmin=0.15 R=2.0");
 		System.out.println("------------------------------");
 		trainP5(3, 0.15, 2.0);
+		System.out.println("generated: " + charTree.generate(10));
 	}
 	
 	void P5UnitTest2() {	// Project 5: Unit Test 2
