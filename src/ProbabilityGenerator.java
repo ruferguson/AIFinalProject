@@ -118,22 +118,21 @@ public class ProbabilityGenerator<T> {
 	}
 	
 	
-	// this function generates a new token
-	T generate(ArrayList<Double> probabilities) {	// added the probabilities parameter so that the Markov generator would work
-		getProbDist(probabilities);		
+	T generate() {
+		getProbDist(getProbabilities());
 		T newToken = null;
 		
-		double rIndex = (double) Math.random();		// generate a random double between 0 and 1
-		boolean found = false;		// a boolean to notify program if the note is found and returned
-		int i = 0;		// to allow exit from while()
+		double rIndex = (double) Math.random(); // generate a random double between 0 and 1
+		boolean found = false; // a boolean to notify program if the note is found and returned
+		int i = 0; // to allow exit from while()
 		
 		while ((i <= probabilities.size() - 1) && (!found)) { 
-			if (rIndex < probDist.get(i)) {
+			if (rIndex < probDist.get(i + 1)) {
 				newToken = alphabet.get(i);
 				found = true;
 			}
 			i++;
-		}
+		}		
 		return newToken;
 	} 
 	
@@ -143,7 +142,7 @@ public class ProbabilityGenerator<T> {
 		ArrayList<T> newSequence = new ArrayList<T>();
 		
 		for (int i = 0; i < length; i++) {
-			newSequence.add(generate(getProbabilities()));
+			newSequence.add(generate());
 		}
 		
 		return newSequence;

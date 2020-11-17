@@ -130,7 +130,8 @@ public class Node<T> extends ProbabilityGenerator<T> {
 	// determines whether the tokenSequence of this node is a suffix of the tokenSequence of the input node
 	boolean amIASuffix(Node node) {	
 		ArrayList<T> input = node.getTokenSeq();
-		boolean isSuffix = false;
+		boolean isSuffix = amIASuffix(input);
+		/*boolean isSuffix = false;
 		if (tokenSequence.isEmpty()) {	// empty string is suffix of everything
 			isSuffix = true;
 		} else {
@@ -144,15 +145,15 @@ public class Node<T> extends ProbabilityGenerator<T> {
 					isSuffix = true;
 				}
 			}
-		}
+		}*/
 		return isSuffix;
 	}
 	
 	// determines whether the tokenSequence of this node is a suffix of the tokenSequence of the input node
-	boolean isInputASuffix(ArrayList input) {	
+	boolean amIASuffix(ArrayList input) {	
 		boolean isSuffix = false;
 		if (tokenSequence.isEmpty()) {	// empty string is suffix of everything
-			isSuffix = true;
+			isSuffix = true;		
 		} else {
 			for (int i = 0; i < input.size(); i++) {
 				ArrayList<T> checkSublist = new ArrayList<T>(input.subList(i, input.size()));	//curSequence = find the current sequence of size i		
@@ -216,26 +217,32 @@ public class Node<T> extends ProbabilityGenerator<T> {
 	//Traverse through the tree to find the correct node to generate from
 	T generate(ArrayList initSeq) {
 		T newToken = null; //the new token to return
-		System.out.println("init sequence is: " + initSeq);
-		System.out.println("token sequence is: " + getTokenSeq());
+		
+		//System.out.println("init sequence is: " + initSeq);
+		//System.out.println("token sequence is: " + getTokenSeq());
+		//System.out.println("this.amIASuffix(initSeq): " + this.amIASuffix(initSeq));
 
 		// 1. If the tokenSequence equals the initSeq, then return the result the super class ProbabilityGenerator generate().	
 		if (getTokenSeq().equals(initSeq)) {
-			newToken = (T) super.generate(initSeq);
-			return newToken;
-		} else if (this.isInputASuffix(initSeq)) {	// 2. Else if the tokenSequence is a suffix of the initSeq,
+			newToken = (T) super.generate();
+			//System.out.println("new token: " + newToken);
+			//return newToken;
+		} else if (this.amIASuffix(initSeq)) {	// 2. Else if the tokenSequence is a suffix of the initSeq,
+			//System.out.println("this.amIASuffix(initSeq): " + this.amIASuffix(initSeq));
+
 			// make the pseudo-recursive call to generate(initSeq) via your children.
 			// If the return value is not null, return that value.
 			for (int i = 0; i < children.size(); i++) {
 				T tempToken = (T) (children.get(i)).generate(initSeq);
 				if (tempToken != null) {
-					return tempToken;
+					tempToken = newToken;
+					//return tempToken;
 				}
 			}
 		} else {	// 3. If none of your children have generated a token (generate(ArrayList initSeq)) keeps on
 					// returning null), then return the result of the super class ProbabilityGenerator generate().
-			newToken = (T) super.generate(initSeq);
-			return newToken;
+			newToken = (T) super.generate();
+			//return newToken;
 		}
 		return newToken;
 	}
