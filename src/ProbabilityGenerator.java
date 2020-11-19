@@ -126,8 +126,11 @@ public class ProbabilityGenerator<T> {
 		boolean found = false; // a boolean to notify program if the note is found and returned
 		int i = 0; // to allow exit from while()
 		
-		while ((i <= probabilities.size() - 1) && (!found)) { 
-			if (rIndex < probDist.get(i + 1)) {
+		while ((i <= getProbabilities().size() - 1) && (!found)) { 
+			if (probDist.size() == 1) {
+				newToken = alphabet.get(i);
+				found = true;
+			} else if (rIndex < probDist.get(i + 1)) {
 				newToken = alphabet.get(i);
 				found = true;
 			}

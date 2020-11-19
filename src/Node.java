@@ -20,7 +20,6 @@ public class Node<T> extends ProbabilityGenerator<T> {
 	boolean hasSeqAtEndOfDataset; // Is the tokenSequence of this node at the end? – can be in constructor or create a set method to assign the value from the tree
 	double this_r; // the r value of the node. I make this a class variable so it is easy to print out in the print() for testing
 	T nextToken; // the token that comes after this node’s tokenSequence. Set in a parameter in the constructor.
-			
 	
 	Node() {
 		children = new ArrayList<Node>();
@@ -127,29 +126,14 @@ public class Node<T> extends ProbabilityGenerator<T> {
 	}
 	
 	
-	// determines whether the tokenSequence of this node is a suffix of the tokenSequence of the input node
+	// determines whether this node is a suffix of the the input node
 	boolean amIASuffix(Node node) {	
 		ArrayList<T> input = node.getTokenSeq();
 		boolean isSuffix = amIASuffix(input);
-		/*boolean isSuffix = false;
-		if (tokenSequence.isEmpty()) {	// empty string is suffix of everything
-			isSuffix = true;
-		} else {
-			for (int i = 0; i < input.size(); i++) {
-				ArrayList<T> checkSublist = new ArrayList<T>(input.subList(i, input.size()));	//curSequence = find the current sequence of size i		
-
-				int inputIsInTokenSeq = tokenSequence.indexOf(checkSublist); // find checkSublist in tokenSequence			
-				if (inputIsInTokenSeq != -1) {
-					isSuffix = true;
-				} else if (checkSublist.equals(tokenSequence)) { // are they the same?
-					isSuffix = true;
-				}
-			}
-		}*/
 		return isSuffix;
 	}
 	
-	// determines whether the tokenSequence of this node is a suffix of the tokenSequence of the input node
+	// determines whether the given tokenSequence is a suffix of the tokenSequence of the input node
 	boolean amIASuffix(ArrayList input) {	
 		boolean isSuffix = false;
 		if (tokenSequence.isEmpty()) {	// empty string is suffix of everything
@@ -218,41 +202,54 @@ public class Node<T> extends ProbabilityGenerator<T> {
 	T generate(ArrayList initSeq) {
 		T newToken = null; //the new token to return
 		
-		//System.out.println("init sequence is: " + initSeq);
-		//System.out.println("token sequence is: " + getTokenSeq());
-		//System.out.println("this.amIASuffix(initSeq): " + this.amIASuffix(initSeq));
-
 		// 1. If the tokenSequence equals the initSeq, then return the result the super class ProbabilityGenerator generate().	
 		if (getTokenSeq().equals(initSeq)) {
 			newToken = (T) super.generate();
-			//System.out.println("new token: " + newToken);
-			//return newToken;
 		} else if (this.amIASuffix(initSeq)) {	// 2. Else if the tokenSequence is a suffix of the initSeq,
-			//System.out.println("this.amIASuffix(initSeq): " + this.amIASuffix(initSeq));
-
 			// make the pseudo-recursive call to generate(initSeq) via your children.
 			// If the return value is not null, return that value.
-			for (int i = 0; i < children.size(); i++) {
+			int i = 0;
+			while (i < children.size()) {
 				T tempToken = (T) (children.get(i)).generate(initSeq);
 				if (tempToken != null) {
-					tempToken = newToken;
-					//return tempToken;
+					newToken = tempToken;
+					i = children.size();
 				}
+				i++;
 			}
-		} else {	// 3. If none of your children have generated a token (generate(ArrayList initSeq)) keeps on
-					// returning null), then return the result of the super class ProbabilityGenerator generate().
-			newToken = (T) super.generate();
-			//return newToken;
+			if (newToken == null) { // 3. If none of your children have generated a token (generate(ArrayList initSeq)) keeps on
+									 // returning null), then return the result of the super class ProbabilityGenerator generate().
+				newToken = (T) super.generate();
+			}
 		}
 		return newToken;
 	}
 	
 	
-	ArrayList<T> generate(ArrayList initSeq, int length) {
+	ArrayList<T> generate(ArrayList initSeq, int length, int L) {
 		// call generate(initSeq) for length times and return an ArrayList with the result
 		ArrayList<T> newSequence = new ArrayList<T>();
+
+		System.out.print("\n");
+
 		for (int i = 0; i < length; i++) {
+			System.out.println(initSeq);
+			
 			newSequence.add(generate(initSeq));
+			
+			// update initSeq with sequences of size L from the end of the newSequence
+			int m = newSequence.size() - 1;
+			int k = 0;
+			while (k < L && initSeq.size() < newSequence.size()) {
+				if (initSeq.size() < L || initSeq.size() == 0) { 
+					initSeq.add(newSequence.get(m));
+				} else {
+					initSeq.set(k, newSequence.get(m));
+					Collections.reverse(initSeq);
+				}
+				m--;
+				k++;
+			}
 		}
 		return newSequence;
 	}

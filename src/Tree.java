@@ -57,6 +57,6 @@ public class Tree<T> {
 	}
 	
 	ArrayList<T> generate(int length) {
-		return root.generate(new ArrayList(), length);
+		return root.generate(new ArrayList(), length, L);
 	}
 }
