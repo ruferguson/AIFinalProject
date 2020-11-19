@@ -5,6 +5,8 @@
  */
 
 import processing.core.*;
+import processing.data.JSONArray;
+import processing.data.JSONObject;
 
 import java.util.*; 
 
@@ -19,52 +21,128 @@ import java.net.*;
 
 //import javax.sound.midi.*;
 
+//Import OSC
+import oscP5.*;
+import netP5.*;
+
+
 //make sure this class name matches your file name, if not fix.
 public class AIFinalProject extends PApplet {
+	
+	// Runway Host
+	String runwayHost = "127.0.0.1";
 
+	// Runway Port
+	int runwayPort = 57100;
+	
+	OscP5 oscP5;
+	NetAddress myBroadcastLocation;
+	
+	// This array will hold all the humans detected
+	JSONObject data;
+	JSONArray humans;
+
+	// This are the pair of body connections we want to form. 
+	// Try creating new ones!
+	String[][] connections = {
+	  {"nose", "leftEye"},
+	  {"leftEye", "leftEar"},
+	  {"nose", "rightEye"},
+	  {"rightEye", "rightEar"},
+	  {"rightShoulder", "rightElbow"},
+	  {"rightElbow", "rightWrist"},
+	  {"leftShoulder", "leftElbow"},
+	  {"leftElbow", "leftWrist"}, 
+	  {"rightHip", "rightKnee"},
+	  {"rightKnee", "rightAnkle"},
+	  {"leftHip", "leftKnee"},
+	  {"leftKnee", "leftAnkle"}
+	};
+	
+	PVector xPosVect, yPosVect;
+
+	float xPos;
+	float yPos;
+	float lastXPos;
+	float lastYPos;
+	float vel;
+	float accel;
+	float jerk;
+
+	
+	
 	MelodyPlayer player; //play a midi sequence
 	MidiFileToNotes midiNotes; //read a midi file
-	UnitTests unitTest = new UnitTests(); // create unit tests
-	
 	String filePath;
 
 	Tree<Integer> pitchTree;
-	Tree<Character> charTree;
-	ArrayList<Character> testList;
+	Tree<Double> rhythmTree;
 	
 	public static void main(String[] args) {
 		PApplet.main("AIFinalProject"); 
 	}
 
-	//setting the window size to 300x300
+	//setting the window size
 	public void settings() {
-		size(375, 400);
+		size(500, 500);
 	}
 
-	//doing all the setup stuff
 	public void setup() {						
 		// returns a url
-		filePath = getPath("mid/Super_Mario_Bros_Theme.mid"); // use this for probabilistic generation
-
-		midiNotes = new MidiFileToNotes(filePath); //creates a new MidiFileToNotes -- reminder -- ALL objects in Java must 
-												   //be created with "new". Note how every object is a pointer or reference. Every. single. one.
+		filePath = getPath("mid/Super_Mario_Bros_Theme.mid"); // locate midi file
+		midiNotes = new MidiFileToNotes(filePath); //creates a new MidiFileToNotes
 
 	    // which line to read in --> this object only reads one line (or ie, voice or ie, one instrument)'s worth of data from the file
 		midiNotes.setWhichLine(0);
 
 		player = new MelodyPlayer(this, 100.0f);
 		
-		player.setup();
+		player.setup();	
+		
+		// create the trees
+		pitchTree = new Tree<Integer>(3, 0.1, 1.5);
+		rhythmTree = new Tree<Double>(3, 0.1, 1.5);
+		// train the trees
+		pitchTree.train(midiNotes.getPitchArray());
+		rhythmTree.train(midiNotes.getRhythmArray());
+		// generate a new melody and play it
+		player.setMelody(pitchTree.generate(30));
+		player.setRhythm(rhythmTree.generate(30));
+		
+		System.out.println("generated pitches: " + pitchTree.generate(10));
+		System.out.println("generated rhythms: " + rhythmTree.generate(10));
 
-		// play the midi notes as they are in the file
-		player.setMelody(midiNotes.getPitchArray());
-		player.setRhythm(midiNotes.getRhythmArray());
+		
+		// frameRate(25);
+		OscProperties properties = new OscProperties();
+		properties.setRemoteAddress("127.0.0.1", 57200);
+		properties.setListeningPort(57200);
+		properties.setDatagramSize(99999999);
+		properties.setSRSP(OscProperties.ON);
+		oscP5 = new OscP5(this, properties);
+	
+		// Use the localhost and the port 57100 that we define in Runway
+		myBroadcastLocation = new NetAddress(runwayHost, runwayPort);
+		connect();
+
+		fill(255);
+		stroke(255);
 	}
+	
 
 	public void draw() {
 	    player.play();		//play each note in the sequence -- the player will determine whether is time for a note onset
-	    background(250);
-	    showInstructions();
+	    //background(250);
+	    //showInstructions();
+	    
+	    
+	    background(0);
+	    // Choose between drawing just an ellipse
+	    // over the body parts or drawing connections
+	    // between them. or both!
+	    drawParts();
+	    calcJerk();
+	    //System.out.println("x: " + xPos + " y: " + yPos);
 	}
 
 	//this finds the absolute path of a file
@@ -100,19 +178,64 @@ public class AIFinalProject extends PApplet {
 			player.hasMelody = true; // starts the player
 			println("Melody started!");
 		} else if (key == 'p') {
-			P5GenerateNotes(); 
 			System.out.println("Generating notes . . . enjoy!");
 		} else if (key == '1') {
-			unitTest.P5UnitTest1();
-		} else if (key == '2') {
-			unitTest.P5UnitTest2();
-		} else if (key == '3') {
-			unitTest.P5UnitTest3();
-		} else if (key == '4') {
-			unitTest.P5UnitTest4();
 		} else if (key == 'o') {		
 			player.hasMelody = false; // stops the player
 		} 
+	}
+	
+	// A function to draw humans body parts as circles
+	void drawParts() {
+	  // Only if there are any humans detected
+	  if (data != null) {
+	    humans = data.getJSONArray("poses");
+	    for(int h = 0; h < humans.size(); h++) {
+	      JSONArray keypoints = humans.getJSONArray(h);
+	      // Now that we have one human, let's draw its body parts
+	      for (int k = 0; k < keypoints.size(); k++) {
+	        // Body parts are relative to width and weight of the input
+	        JSONArray point = keypoints.getJSONArray(k);
+	        float x = point.getFloat(0);
+	        float y = point.getFloat(1);
+	        ellipse(x * width, y * height, 10, 10);
+	      }
+	    }
+	  }
+	}
+	
+	void connect() {
+		  OscMessage m = new OscMessage("/server/connect");
+		  oscP5.send(m, myBroadcastLocation);
+	}
+	
+	// OSC Event: listens to data coming from Runway
+	void oscEvent(OscMessage theOscMessage) {
+	  if (!theOscMessage.addrPattern().equals("/data")) return;
+	  // The data is in a JSON string, so first we get the string value
+	  String dataString = theOscMessage.get(0).stringValue();
+
+	  // We then parse it as a JSONObject
+	  data = parseJSONObject(dataString);
+	}
+	
+	void calcJerk() {
+		if (data != null) {
+		    humans = data.getJSONArray("poses");
+		    for(int h = 0; h < humans.size(); h++) {
+		      JSONArray keypoints = humans.getJSONArray(h);
+		      
+		      // 0 = nose
+		      JSONArray point = keypoints.getJSONArray(0);
+		      lastXPos = xPos;
+		      lastYPos = yPos;
+		      xPos = point.getFloat(0);
+		      yPos = point.getFloat(1);
+		     // xPosVect.set(lastXPos, xPos);
+		     // yPosVect.set(lastYPos, yPos);
+		      vel = (yPos - lastYPos) / (xPos - lastXPos);
+		    }
+		}
 	}
 	
 	
@@ -136,11 +259,4 @@ public class AIFinalProject extends PApplet {
 		text("Press 4 for Project 5: Unit Test 4", width/2, height*9/10);
 	}
 	
-	
-	// generate a melody using the PST Generator from Project 5
-	public void P5GenerateNotes() {
-		filePath = getPath("mid/Super_Mario_Bros_Theme.mid");
-		midiNotes = new MidiFileToNotes(filePath);
-		midiNotes.setWhichLine(0);
-	}
 }
