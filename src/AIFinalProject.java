@@ -29,11 +29,8 @@ import netP5.*;
 //make sure this class name matches your file name, if not fix.
 public class AIFinalProject extends PApplet {
 	
-	// Runway Host
-	String runwayHost = "127.0.0.1";
-
-	// Runway Port
-	int runwayPort = 57100;
+	String runwayHost = "127.0.0.1";   // Runway Host
+	int runwayPort = 57100;	  // Runway Port
 	
 	OscP5 oscP5;
 	NetAddress myBroadcastLocation;
@@ -59,16 +56,17 @@ public class AIFinalProject extends PApplet {
 	  {"leftKnee", "leftAnkle"}
 	};
 	
-	PVector xPosVect, yPosVect;
-
-	float xPos;
-	float yPos;
-	float lastXPos;
-	float lastYPos;
-	float vel;
-	float accel;
+	PVector curPos, prevPos;
+	
+	float curXPos;
+	float curYPos;
+	float prevXPos;
+	float prevYPos;
+	float curVel;
+	float curAccel;
+	float prevVel;
+	float prevAccel;
 	float jerk;
-
 	
 	
 	MelodyPlayer player; //play a midi sequence
@@ -89,7 +87,13 @@ public class AIFinalProject extends PApplet {
 
 	public void setup() {						
 		// returns a url
-		filePath = getPath("mid/Super_Mario_Bros_Theme.mid"); // locate midi file
+		//filePath = getPath("mid/Super_Mario_Bros_Theme.mid"); // locate midi file
+		//filePath = getPath("mid/pirates.mid"); // locate midi file
+		filePath = getPath("mid/holst_jupiter.mid"); // locate midi file
+		filePath = getPath("mid/gardel_por.mid"); // locate midi file
+
+		//filePath = getPath("mid/Mii_Channel.mid"); // locate midi file
+
 		midiNotes = new MidiFileToNotes(filePath); //creates a new MidiFileToNotes
 
 	    // which line to read in --> this object only reads one line (or ie, voice or ie, one instrument)'s worth of data from the file
@@ -109,11 +113,19 @@ public class AIFinalProject extends PApplet {
 		player.setMelody(pitchTree.generate(30));
 		player.setRhythm(rhythmTree.generate(30));
 		
+		//player.setMelody(midiNotes.getPitchArray());
+		//player.setRhythm(midiNotes.getRhythmArray());
+		
 		System.out.println("generated pitches: " + pitchTree.generate(10));
 		System.out.println("generated rhythms: " + rhythmTree.generate(10));
 
+		curPos = new PVector(0, 0);
+		prevPos = new PVector(0, 0);
+		prevVel = 0;
+		prevAccel = 0;
+		jerk = 0;
 		
-		// frameRate(25);
+		frameRate(25);
 		OscProperties properties = new OscProperties();
 		properties.setRemoteAddress("127.0.0.1", 57200);
 		properties.setListeningPort(57200);
@@ -140,9 +152,10 @@ public class AIFinalProject extends PApplet {
 	    // Choose between drawing just an ellipse
 	    // over the body parts or drawing connections
 	    // between them. or both!
-	    drawParts();
+	    //drawParts();
 	    calcJerk();
-	    //System.out.println("x: " + xPos + " y: " + yPos);
+	    motionBang();
+	    //System.out.println("x: " + curXPos + " y: " + curYPos);
 	}
 
 	//this finds the absolute path of a file
@@ -188,20 +201,18 @@ public class AIFinalProject extends PApplet {
 	// A function to draw humans body parts as circles
 	void drawParts() {
 	  // Only if there are any humans detected
-	  if (data != null) {
-	    humans = data.getJSONArray("poses");
-	    for(int h = 0; h < humans.size(); h++) {
-	      JSONArray keypoints = humans.getJSONArray(h);
-	      // Now that we have one human, let's draw its body parts
-	      for (int k = 0; k < keypoints.size(); k++) {
-	        // Body parts are relative to width and weight of the input
-	        JSONArray point = keypoints.getJSONArray(k);
-	        float x = point.getFloat(0);
-	        float y = point.getFloat(1);
-	        ellipse(x * width, y * height, 10, 10);
-	      }
-	    }
-	  }
+		if (data != null) {
+		    humans = data.getJSONArray("poses");
+		    for(int h = 0; h < humans.size(); h++) {
+		      JSONArray keypoints = humans.getJSONArray(h);
+		      // Now that we have one human, let's draw its body parts
+		      
+		      JSONArray nose = keypoints.getJSONArray(0);
+		      curXPos = nose.getFloat(0);
+		      curYPos = nose.getFloat(1);
+		      ellipse(curXPos * width, curYPos * height, 10, 10);
+		    }
+		}
 	}
 	
 	void connect() {
@@ -210,31 +221,52 @@ public class AIFinalProject extends PApplet {
 	}
 	
 	// OSC Event: listens to data coming from Runway
-	void oscEvent(OscMessage theOscMessage) {
-	  if (!theOscMessage.addrPattern().equals("/data")) return;
-	  // The data is in a JSON string, so first we get the string value
-	  String dataString = theOscMessage.get(0).stringValue();
-
-	  // We then parse it as a JSONObject
-	  data = parseJSONObject(dataString);
+	void oscEvent(OscMessage message) {
+	  if (!message.addrPattern().equals("/data")) return;
+	  String dataString = message.get(0).stringValue();	// The data is in a JSON string, so first we get the string value
+	  data = parseJSONObject(dataString);	// We then parse it as a JSONObject
 	}
 	
-	void calcJerk() {
+	void updatePosition() {
 		if (data != null) {
 		    humans = data.getJSONArray("poses");
 		    for(int h = 0; h < humans.size(); h++) {
 		      JSONArray keypoints = humans.getJSONArray(h);
 		      
-		      // 0 = nose
-		      JSONArray point = keypoints.getJSONArray(0);
-		      lastXPos = xPos;
-		      lastYPos = yPos;
-		      xPos = point.getFloat(0);
-		      yPos = point.getFloat(1);
-		     // xPosVect.set(lastXPos, xPos);
-		     // yPosVect.set(lastYPos, yPos);
-		      vel = (yPos - lastYPos) / (xPos - lastXPos);
+		      // 0 = nose     10 = right wrist
+		      JSONArray point = keypoints.getJSONArray(10);
+		      prevXPos = curXPos;
+		      prevYPos = curYPos;
+		      curXPos = point.getFloat(0);
+		      curYPos = point.getFloat(1);
+		      ellipse(curXPos * width, curYPos * height, 10, 10);
 		    }
+		}
+	}
+	
+	void calcJerk() {
+		updatePosition();
+		
+		curPos.set(curXPos, curYPos);
+		prevPos.set(prevXPos, prevYPos);
+		
+	    if (!prevPos.equals(curPos)) {
+			prevVel = curVel;
+			curVel = PVector.dist(curPos, prevPos);
+			
+			prevAccel = curAccel;
+			curAccel = prevVel - curVel;
+			
+			jerk = prevAccel - curAccel;
+			
+			System.out.println("curPos: " + curPos + " prevPos: " + prevPos + " curVel: " + curVel + " prevVel: " + prevVel + " curAccel: " + curAccel + " prevAccel: " + prevAccel + " jerk: " + jerk);                              
+	    }
+	}
+	
+	void motionBang() {
+		jerk = abs(jerk);
+		if (jerk > 0.5) {
+			player.reset();
 		}
 	}
 	
