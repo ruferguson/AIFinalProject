@@ -1,7 +1,8 @@
 /* Ru Ferguson
- * 4 November 2020
+ * 24 November 2020
  * This project creates and prints prediction suffix trees based on ArrayList<T> inputs and
  * also implements Pmin elimination.
+ * 
  */
 
 import processing.core.*;
@@ -19,14 +20,10 @@ import jm.midi.*;
 import java.io.UnsupportedEncodingException;
 import java.net.*;
 
-//import javax.sound.midi.*;
-
 //Import OSC
 import oscP5.*;
 import netP5.*;
 
-
-//make sure this class name matches your file name, if not fix.
 public class AIFinalProject extends PApplet {
 	
 	String runwayHost = "127.0.0.1";   // Runway Host
@@ -38,23 +35,6 @@ public class AIFinalProject extends PApplet {
 	// This array will hold all the humans detected
 	JSONObject data;
 	JSONArray humans;
-
-	// This are the pair of body connections we want to form. 
-	// Try creating new ones!
-	String[][] connections = {
-	  {"nose", "leftEye"},
-	  {"leftEye", "leftEar"},
-	  {"nose", "rightEye"},
-	  {"rightEye", "rightEar"},
-	  {"rightShoulder", "rightElbow"},
-	  {"rightElbow", "rightWrist"},
-	  {"leftShoulder", "leftElbow"},
-	  {"leftElbow", "leftWrist"}, 
-	  {"rightHip", "rightKnee"},
-	  {"rightKnee", "rightAnkle"},
-	  {"leftHip", "leftKnee"},
-	  {"leftKnee", "leftAnkle"}
-	};
 	
 	PVector curPos, prevPos;
 	
@@ -67,6 +47,7 @@ public class AIFinalProject extends PApplet {
 	float prevVel;
 	float prevAccel;
 	float jerk;
+	float jerkThresh;
 	
 	
 	MelodyPlayer player; //play a midi sequence
@@ -76,13 +57,15 @@ public class AIFinalProject extends PApplet {
 	Tree<Integer> pitchTree;
 	Tree<Double> rhythmTree;
 	
+	Snake snake;
+	
 	public static void main(String[] args) {
 		PApplet.main("AIFinalProject"); 
 	}
 
 	//setting the window size
 	public void settings() {
-		size(500, 500);
+		size(600, 600);
 	}
 
 	public void setup() {						
@@ -90,8 +73,7 @@ public class AIFinalProject extends PApplet {
 		//filePath = getPath("mid/Super_Mario_Bros_Theme.mid"); // locate midi file
 		//filePath = getPath("mid/pirates.mid"); // locate midi file
 		filePath = getPath("mid/holst_jupiter.mid"); // locate midi file
-		filePath = getPath("mid/gardel_por.mid"); // locate midi file
-
+		//filePath = getPath("mid/gardel_por.mid"); // locate midi file
 		//filePath = getPath("mid/Mii_Channel.mid"); // locate midi file
 
 		midiNotes = new MidiFileToNotes(filePath); //creates a new MidiFileToNotes
@@ -115,15 +97,15 @@ public class AIFinalProject extends PApplet {
 		
 		//player.setMelody(midiNotes.getPitchArray());
 		//player.setRhythm(midiNotes.getRhythmArray());
-		
-		System.out.println("generated pitches: " + pitchTree.generate(10));
-		System.out.println("generated rhythms: " + rhythmTree.generate(10));
 
 		curPos = new PVector(0, 0);
 		prevPos = new PVector(0, 0);
 		prevVel = 0;
 		prevAccel = 0;
 		jerk = 0;
+		jerkThresh = (float) 0.40;
+		
+		snake = new Snake(this, curXPos, curYPos);
 		
 		frameRate(25);
 		OscProperties properties = new OscProperties();
@@ -138,24 +120,16 @@ public class AIFinalProject extends PApplet {
 		connect();
 
 		fill(255);
-		stroke(255);
+		noStroke();
 	}
 	
 
 	public void draw() {
 	    player.play();		//play each note in the sequence -- the player will determine whether is time for a note onset
-	    //background(250);
-	    //showInstructions();
-	    
-	    
 	    background(0);
-	    // Choose between drawing just an ellipse
-	    // over the body parts or drawing connections
-	    // between them. or both!
-	    //drawParts();
+	    showInstructions();
 	    calcJerk();
 	    motionBang();
-	    //System.out.println("x: " + curXPos + " y: " + curYPos);
 	}
 
 	//this finds the absolute path of a file
@@ -172,16 +146,6 @@ public class AIFinalProject extends PApplet {
 		return filePath;
 	}
 
-	// this function is not currently called. you may call this from setup() if you want to test
-	// this just plays the midi file -- all of it via your software synth. You will not use this
-	// function in upcoming projects but it could be a good debug tool.
-	void playMidiFile(String filename) {
-		Score theScore = new Score("Temporary score");
-		Read.midi(theScore, filename);
-		Play.midi(theScore);
-	}
-
-	
 	// this starts & restarts the melody and runs unit tests
 	public void keyPressed() {
 		if (key == ' ') {
@@ -198,33 +162,17 @@ public class AIFinalProject extends PApplet {
 		} 
 	}
 	
-	// A function to draw humans body parts as circles
-	void drawParts() {
-	  // Only if there are any humans detected
-		if (data != null) {
-		    humans = data.getJSONArray("poses");
-		    for(int h = 0; h < humans.size(); h++) {
-		      JSONArray keypoints = humans.getJSONArray(h);
-		      // Now that we have one human, let's draw its body parts
-		      
-		      JSONArray nose = keypoints.getJSONArray(0);
-		      curXPos = nose.getFloat(0);
-		      curYPos = nose.getFloat(1);
-		      ellipse(curXPos * width, curYPos * height, 10, 10);
-		    }
-		}
-	}
 	
 	void connect() {
-		  OscMessage m = new OscMessage("/server/connect");
-		  oscP5.send(m, myBroadcastLocation);
+		OscMessage m = new OscMessage("/server/connect");
+		oscP5.send(m, myBroadcastLocation);
 	}
 	
 	// OSC Event: listens to data coming from Runway
 	void oscEvent(OscMessage message) {
-	  if (!message.addrPattern().equals("/data")) return;
-	  String dataString = message.get(0).stringValue();	// The data is in a JSON string, so first we get the string value
-	  data = parseJSONObject(dataString);	// We then parse it as a JSONObject
+		if (!message.addrPattern().equals("/data")) return;
+		String dataString = message.get(0).stringValue();	// The data is in a JSON string, so first we get the string value
+		data = parseJSONObject(dataString);	// We then parse it as a JSONObject
 	}
 	
 	void updatePosition() {
@@ -232,48 +180,56 @@ public class AIFinalProject extends PApplet {
 		    humans = data.getJSONArray("poses");
 		    for(int h = 0; h < humans.size(); h++) {
 		      JSONArray keypoints = humans.getJSONArray(h);
-		      
-		      // 0 = nose     10 = right wrist
 		      JSONArray point = keypoints.getJSONArray(10);
-		      prevXPos = curXPos;
-		      prevYPos = curYPos;
-		      curXPos = point.getFloat(0);
-		      curYPos = point.getFloat(1);
-		      ellipse(curXPos * width, curYPos * height, 10, 10);
+			  prevXPos = curXPos;
+			  prevYPos = curYPos;
+			  curXPos = point.getFloat(0);
+			  curYPos = point.getFloat(1);
+		      drawControlPoint();
 		    }
 		}
 	}
 	
 	void calcJerk() {
 		updatePosition();
-		
 		curPos.set(curXPos, curYPos);
 		prevPos.set(prevXPos, prevYPos);
 		
-	    if (!prevPos.equals(curPos)) {
-			prevVel = curVel;
-			curVel = PVector.dist(curPos, prevPos);
+	    if (!prevPos.equals(curPos)) { // if the position has changed
+			prevVel = curVel; // save current velocity as previous velocity
+			curVel = PVector.dist(curPos, prevPos); // calculate current velocity
 			
-			prevAccel = curAccel;
-			curAccel = prevVel - curVel;
+			prevAccel = curAccel; // save current acceleration as previous acceleration
+			curAccel = prevVel - curVel; // calculate current acceleration
 			
-			jerk = prevAccel - curAccel;
-			
+			jerk = prevAccel - curAccel; // calculate current jerk
+
 			System.out.println("curPos: " + curPos + " prevPos: " + prevPos + " curVel: " + curVel + " prevVel: " + prevVel + " curAccel: " + curAccel + " prevAccel: " + prevAccel + " jerk: " + jerk);                              
 	    }
 	}
 	
+	// A function to draw humans body parts as circles
+	void drawControlPoint() {
+		// right wrist ID = 10
+	    snake.addPoint(curXPos * width, curYPos * height);
+	    snake.drawPoints();
+	    snake.removePoints();
+	    
+	    //ellipse(curXPos * width, curYPos * height, 10, 10);
+	}
+	
 	void motionBang() {
 		jerk = abs(jerk);
-		if (jerk > 0.5) {
+		if (jerk > jerkThresh) {
 			player.reset();
 		}
 	}
 	
-	
 	// display instructions to the user
 	public void showInstructions() {
-		textAlign(CENTER);
+		fill(255, 100);
+		rect(0, 500, 600, 100);
+		textAlign(LEFT);
 		textSize(30);
 		fill(255, 75, 75);
 		text("Welcome to the", width/2, height*2/10);

@@ -1,25 +1,23 @@
 /* Ru Ferguson
- * 4 November 2020
+ * 24 November 2020
  * 
  * This class creates Node objects which each represent one node in the prediction suffix tree.
- * Nodes can also be removed using Pmin elimination.
+ * Nodes can also be removed using Pmin or R elimination. This class extends the Probability Generator
+ * and uses its functionality to keep track of all the tokens that come after each node and the counts for each.
+ * It is also used to generate new tokens.
  */
 
 import java.util.ArrayList;
 import java.util.Collections;
 
 public class Node<T> extends ProbabilityGenerator<T> {
-	// you’ll now inherit from your ProbabilityGenerator class. You will use the ProbabilityGenerator
-	// class to keep track of all the tokens that come after your node & the counts for each. In the
-	// PST generate, you will use it to generate
 	
 	ArrayList<T> tokenSequence; // the sequence at this node
 	ArrayList<Node> children; // an array of the child nodes
-	int count; // count – the number of times the node appears in the input, initially set to 1
-	//(NOTE: the name of this class variable MUST be different than the class variable keeping track of the total # of input tokens in ProbabilityGenerator)
-	boolean hasSeqAtEndOfDataset; // Is the tokenSequence of this node at the end? – can be in constructor or create a set method to assign the value from the tree
-	double this_r; // the r value of the node. I make this a class variable so it is easy to print out in the print() for testing
-	T nextToken; // the token that comes after this node’s tokenSequence. Set in a parameter in the constructor.
+	int count; // the number of times the node appears in the input, initially set to 1
+	boolean hasSeqAtEndOfDataset; // is the tokenSequence of this node at the end?
+	double this_r; // the r value of the node
+	T nextToken; // the token that comes after this node’s tokenSequence
 	
 	Node() {
 		children = new ArrayList<Node>();
@@ -93,7 +91,7 @@ public class Node<T> extends ProbabilityGenerator<T> {
 			}
 			// Did one your child nodes add the node?
 			if (!found && (node.getTokenSeq()).size() - 1 == tokenSequence.size() && !node.isSeqAtEndOfDataset()) { //	 If NOT found and the length of node’s tokenSequence is one less than this tokenSequence
-				children.add(node);	//	Add the node to our children array.
+				children.add(node);	// add the node to our children array.
 				found = true;
 				if (!node.isSeqAtEndOfDataset()) {
 					node.trainViaProbGen(node);
@@ -125,7 +123,6 @@ public class Node<T> extends ProbabilityGenerator<T> {
 		}
 	}
 	
-	
 	// determines whether this node is a suffix of the the input node
 	boolean amIASuffix(Node node) {	
 		ArrayList<T> input = node.getTokenSeq();
@@ -153,7 +150,6 @@ public class Node<T> extends ProbabilityGenerator<T> {
 		return isSuffix;
 	}
 	
-	
 	// Returns whether to delete this node or not. The parent node performs the deletion.
 	boolean pMinElimination(int totalTokens, double pMin) {
 		// find the number of times that the sequence could have occurred (dependent on tokenSequence.size())
@@ -177,49 +173,44 @@ public class Node<T> extends ProbabilityGenerator<T> {
 	boolean rElimination(double r, Node<T> myRoot) {
 		boolean shouldRemove = tokenSequence.size() > 1; // the size of the tokenSequence is greater than 1
 		if(shouldRemove) {
-			// Find the r of this node
+			// find the r of this node
 			double myRatio = (double) Collections.max(super.getAlphabetCounts()) / super.getTotal();
 
-			//Find the conditional probabilities for the root.
-			int index = alphabet_counts.indexOf(Collections.max(getAlphabetCounts())); // the corresponding count in myRoot of the token with the max counts from above
-			double rootRatio = (double) myRoot.getCountsAtToken(alphabet.get(index)) / myRoot.getTotal(); // myRoot’s total (the total # input tokens from myRoot’s super class)			
-			
+			// find the conditional probabilities for the root.
+			int index = alphabet_counts.indexOf(Collections.max(getAlphabetCounts()));
+			double rootRatio = (double) myRoot.getCountsAtToken(alphabet.get(index)) / myRoot.getTotal();		
 			this_r = myRatio / rootRatio;
 			shouldRemove = this_r < r;
 		}
 		if (!shouldRemove) { // if we should NOT remove this node 
-			for (int i = children.size() - 1; i >= 0; i--) { //for each node (start from the end & go to the front of each array):
-				boolean shouldRemoveChild = (children.get(i)).rElimination(r, this); //call rElimination on all the children nodes, hand it r & this node (ie. keyword this)
-				if (shouldRemoveChild) { // if they return true (ie, we should remove the node)
-					children.remove(i);	// then remove the entire node (which incl. its children)
+			for (int i = children.size() - 1; i >= 0; i--) { // for each node (start from the end & go to the front of each array)
+				boolean shouldRemoveChild = (children.get(i)).rElimination(r, this); // call rElimination on all the children nodes, hand it r & 'this' node
+				if (shouldRemoveChild) { // if we should remove the node
+					children.remove(i);	// remove the entire node incl. children
 				}
 			}
 		}
 		return shouldRemove;
 	} 
 	
-	//Traverse through the tree to find the correct node to generate from
+	// traverse through the tree to find the correct node to generate from
 	T generate(ArrayList initSeq) {
 		T newToken = null; //the new token to return
 		
-		// 1. If the tokenSequence equals the initSeq, then return the result the super class ProbabilityGenerator generate().	
-		if (getTokenSeq().equals(initSeq)) {
-			newToken = (T) super.generate();
-		} else if (this.amIASuffix(initSeq)) {	// 2. Else if the tokenSequence is a suffix of the initSeq,
-			// make the pseudo-recursive call to generate(initSeq) via your children.
-			// If the return value is not null, return that value.
+		if (getTokenSeq().equals(initSeq)) {	// if the tokenSequence equals the initSeq
+			newToken = (T) super.generate();	// return the result the super class ProbabilityGenerator generate()
+		} else if (this.amIASuffix(initSeq)) {	// else if the tokenSequence is a suffix of the initSeq	
 			int i = 0;
 			while (i < children.size()) {
-				T tempToken = (T) (children.get(i)).generate(initSeq);
-				if (tempToken != null) {
+				T tempToken = (T) (children.get(i)).generate(initSeq);	// make the pseudo-recursive call to generate(initSeq) via your children
+				if (tempToken != null) {	// if the return value is not null, return that value
 					newToken = tempToken;
 					i = children.size();
 				}
 				i++;
 			}
-			if (newToken == null) { // 3. If none of your children have generated a token (generate(ArrayList initSeq)) keeps on
-									 // returning null), then return the result of the super class ProbabilityGenerator generate().
-				newToken = (T) super.generate();
+			if (newToken == null) { // if generate(ArrayList initSeq)) keeps returning null)
+				newToken = (T) super.generate(); // return the result of the super class ProbabilityGenerator generate()
 			}
 		}
 		return newToken;
@@ -229,14 +220,8 @@ public class Node<T> extends ProbabilityGenerator<T> {
 	ArrayList<T> generate(ArrayList initSeq, int length, int L) {
 		// call generate(initSeq) for length times and return an ArrayList with the result
 		ArrayList<T> newSequence = new ArrayList<T>();
-
-		System.out.print("\n");
-
-		for (int i = 0; i < length; i++) {
-			System.out.println(initSeq);
-			
+		for (int i = 0; i < length; i++) {			
 			newSequence.add(generate(initSeq));
-			
 			// update initSeq with sequences of size L from the end of the newSequence
 			int m = newSequence.size() - 1;
 			int k = 0;
