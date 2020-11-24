@@ -29,19 +29,22 @@ public class MelodyPlayer {
 
 	boolean hasRhythm; //has there been a list of rhythms assigned?
 	boolean hasMelody; //has there been a list of pitches assigned?
+	boolean stop;
+	boolean generating;
 
 	PApplet parent;
 
 	
 	//Parent - main class with processing functions
 	//tempo - bpm to play the music
-	MelodyPlayer(PApplet p, float tempo) {
+	MelodyPlayer(PApplet p, float tempo, boolean shouldStop) {
 		parent = p;
 		reset();
 		setBPM(tempo);
 		play = true;
 		hasRhythm = false;
 		rhythm_multiplier = 0.5f; // default is 1/8 notes
+		stop = shouldStop;
 	}
 
 	void setMelody(ArrayList<Integer> m) {
@@ -90,10 +93,16 @@ public class MelodyPlayer {
 			outputMidiBus.sendNoteOff(0, (int) melody.get(note_index - 1), 0);
 			
 			// System.out.println("note off:" + (note_index - 1)); //TODO: comment out when not debugging or not needed
-
+			generating = true;
 			// don't send anything else if done
-			if (note_index == melody.size())
-				note_index = 0;// ++; //cycle vs. stop at end ? TODO: create as an option
+			if (note_index == melody.size()) {
+				if (stop) {
+					note_index ++;
+					generating = false;
+				} else {
+					note_index = 0;// ++; //cycle vs. stop at end ? TODO: create as an option
+				}
+			}
 		}
 		
 		//send out next pitch, find next rhythm / duration
@@ -113,6 +122,10 @@ public class MelodyPlayer {
 	//reset note to 0
 	void reset() {
 		note_index = 0;
+	}
+	
+	boolean isGenerating() {
+		return generating;
 	}
 
 }

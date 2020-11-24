@@ -49,15 +49,18 @@ public class AIFinalProject extends PApplet {
 	float jerk;
 	float jerkThresh;
 	
-	
 	MelodyPlayer player; //play a midi sequence
 	MidiFileToNotes midiNotes; //read a midi file
 	String filePath;
-
+	MelodyPlayer genPlayer; // melody player for generated sounds
+	boolean jupiter = true;
+	boolean mario = false;
+	
 	Tree<Integer> pitchTree;
 	Tree<Double> rhythmTree;
 	
-	Snake snake;
+	boolean show = true;
+	boolean generating = false;
 	
 	public static void main(String[] args) {
 		PApplet.main("AIFinalProject"); 
@@ -69,21 +72,17 @@ public class AIFinalProject extends PApplet {
 	}
 
 	public void setup() {						
-		// returns a url
-		//filePath = getPath("mid/Super_Mario_Bros_Theme.mid"); // locate midi file
-		//filePath = getPath("mid/pirates.mid"); // locate midi file
 		filePath = getPath("mid/holst_jupiter.mid"); // locate midi file
-		//filePath = getPath("mid/gardel_por.mid"); // locate midi file
-		//filePath = getPath("mid/Mii_Channel.mid"); // locate midi file
 
 		midiNotes = new MidiFileToNotes(filePath); //creates a new MidiFileToNotes
-
 	    // which line to read in --> this object only reads one line (or ie, voice or ie, one instrument)'s worth of data from the file
 		midiNotes.setWhichLine(0);
 
-		player = new MelodyPlayer(this, 100.0f);
-		
+		player = new MelodyPlayer(this, 100.0f, false);
 		player.setup();	
+		
+		genPlayer = new MelodyPlayer(this, 100.0f, true);
+		genPlayer.setup();	
 		
 		// create the trees
 		pitchTree = new Tree<Integer>(3, 0.1, 1.5);
@@ -91,22 +90,18 @@ public class AIFinalProject extends PApplet {
 		// train the trees
 		pitchTree.train(midiNotes.getPitchArray());
 		rhythmTree.train(midiNotes.getRhythmArray());
-		// generate a new melody and play it
-		player.setMelody(pitchTree.generate(30));
-		player.setRhythm(rhythmTree.generate(30));
-		
-		//player.setMelody(midiNotes.getPitchArray());
-		//player.setRhythm(midiNotes.getRhythmArray());
+
+		// play initial tune
+		player.setMelody(midiNotes.getPitchArray());
+		player.setRhythm(midiNotes.getRhythmArray());
 
 		curPos = new PVector(0, 0);
 		prevPos = new PVector(0, 0);
 		prevVel = 0;
 		prevAccel = 0;
 		jerk = 0;
-		jerkThresh = (float) 0.40;
-		
-		snake = new Snake(this, curXPos, curYPos);
-		
+		jerkThresh = (float) 0.80;
+				
 		frameRate(25);
 		OscProperties properties = new OscProperties();
 		properties.setRemoteAddress("127.0.0.1", 57200);
@@ -126,6 +121,7 @@ public class AIFinalProject extends PApplet {
 
 	public void draw() {
 	    player.play();		//play each note in the sequence -- the player will determine whether is time for a note onset
+	    genPlayer.play();
 	    background(0);
 	    showInstructions();
 	    calcJerk();
@@ -134,7 +130,6 @@ public class AIFinalProject extends PApplet {
 
 	//this finds the absolute path of a file
 	String getPath(String path) {
-
 		String filePath = "";
 		try {
 			filePath = URLDecoder.decode(getClass().getResource(path).getPath(), "UTF-8");
@@ -153,15 +148,52 @@ public class AIFinalProject extends PApplet {
 			player.setMelody(midiNotes.getPitchArray());
 			player.setRhythm(midiNotes.getRhythmArray());
 			player.hasMelody = true; // starts the player
-			println("Melody started!");
+			println("Melody restarted!");
 		} else if (key == 'p') {
-			System.out.println("Generating notes . . . enjoy!");
-		} else if (key == '1') {
-		} else if (key == 'o') {		
 			player.hasMelody = false; // stops the player
-		} 
+		} else if (key == '1') {
+			jupiter = true;
+			mario = false;
+			checkSong();
+		} else if (key == '2') {
+			jupiter = false;
+			mario = true;
+			checkSong();
+		}
 	}
 	
+	void motionBang() {
+		jerk = abs(jerk);
+		if (jerk > jerkThresh) {
+			genPlayer.reset();
+			genPlayer.setMelody(pitchTree.generate(10));
+			genPlayer.setRhythm(rhythmTree.generate(10));
+		}
+	}
+	
+	public void checkSong() {
+		if (jupiter) {
+			filePath = getPath("mid/holst_jupiter.mid"); 
+			midiNotes = new MidiFileToNotes(filePath); 
+		} else if (mario) {
+			filePath = getPath("mid/Super_Mario_Bros_Theme.mid"); 
+			midiNotes = new MidiFileToNotes(filePath); 
+		}
+		player.setMelody(midiNotes.getPitchArray());
+		player.setRhythm(midiNotes.getRhythmArray());
+		
+		pitchTree = new Tree<Integer>(3, 0.1, 1.5);
+		rhythmTree = new Tree<Double>(3, 0.1, 1.5);
+		pitchTree.train(midiNotes.getPitchArray());
+		rhythmTree.train(midiNotes.getRhythmArray());
+	}
+
+	// show and hide instructions
+	public void keyTyped() {
+		if (key == 'i') {
+			show = !show;
+		}
+	}
 	
 	void connect() {
 		OscMessage m = new OscMessage("/server/connect");
@@ -203,48 +235,49 @@ public class AIFinalProject extends PApplet {
 			curAccel = prevVel - curVel; // calculate current acceleration
 			
 			jerk = prevAccel - curAccel; // calculate current jerk
-
-			System.out.println("curPos: " + curPos + " prevPos: " + prevPos + " curVel: " + curVel + " prevVel: " + prevVel + " curAccel: " + curAccel + " prevAccel: " + prevAccel + " jerk: " + jerk);                              
+			//System.out.println("curPos: " + curPos + " prevPos: " + prevPos + " curVel: " + curVel + " prevVel: " + prevVel + " curAccel: " + curAccel + " prevAccel: " + prevAccel + " jerk: " + jerk);                              
 	    }
 	}
 	
 	// A function to draw humans body parts as circles
 	void drawControlPoint() {
 		// right wrist ID = 10
-	    snake.addPoint(curXPos * width, curYPos * height);
-	    snake.drawPoints();
-	    snake.removePoints();
-	    
-	    //ellipse(curXPos * width, curYPos * height, 10, 10);
-	}
-	
-	void motionBang() {
-		jerk = abs(jerk);
-		if (jerk > jerkThresh) {
-			player.reset();
+		generating = genPlayer.isGenerating();
+		if (generating) {
+			fill(150, 100, 255);
+		} else {
+			fill(255);
 		}
+	    ellipse(curXPos * width, curYPos * height, 20, 20);
 	}
 	
 	// display instructions to the user
 	public void showInstructions() {
-		fill(255, 100);
-		rect(0, 500, 600, 100);
-		textAlign(LEFT);
-		textSize(30);
-		fill(255, 75, 75);
-		text("Welcome to the", width/2, height*2/10);
-		text("PST Generator", width/2, height*3/10);
-		textSize(18);
-		fill(225, 50, 75);
-		text("Now with Pmin Elimination 0.1 and 0.15", width/2, height*4/10);
-		fill(225, 75, 90);
-		text("Press 1 for Project 5: Unit Test 1", width/2, height*6/10);
-		fill(225, 75, 105);
-		text("Press 2 for Project 5: Unit Test 2", width/2, height*7/10); 
-		fill(225, 75, 120);
-		text("Press 3 for Project 5: Unit Test 3", width/2, height*8/10);
-		fill(225, 75, 135);
-		text("Press 4 for Project 5: Unit Test 4", width/2, height*9/10);
+		if (show) {
+			fill(255, 100);
+			rect(0, 500, 600, 100);
+			fill(255, 150);
+			textAlign(LEFT);
+			textSize(20);
+			text("Moving Melodies", 25, 555);
+			textSize(13);
+			text("move your right hand quickly to generate a new melody", 220, 520);
+			text("press '1' to generate from Holst's Jupiter", 220, 535);
+			text("press '2' to generate from Super Mario Bros", 220, 550); 
+			text("press 'space' to RESTART or 'p' to PAUSE the base melody", 220, 565); 
+			text("press 'i' to show/hide instructions", 220, 580);
+			textAlign(CENTER);
+			textSize(15);
+			fill(255);
+			if (player.hasMelody) {
+				if (jupiter) {
+					text("* playing * Jupiter from Holst's The Planets", width/2, 20);
+				} else if (mario) {
+					text("* playing * the Super Mario Bros Theme", width/2, 20);
+				}
+			} else {
+				text("* paused *", width/2, 20);
+			}
+		}
 	}
-	
 }

@@ -77,5 +77,4 @@ public class MidiFileToNotes {
 	public Double[] getRhythms() {
 		return rhythms.toArray(new Double[rhythms.size()]);
 	}
-
 }
