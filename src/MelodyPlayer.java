@@ -107,8 +107,13 @@ public class MelodyPlayer {
 		
 		//send out next pitch, find next rhythm / duration
 		if (note_index < melody.size() && note_index > -1 && play) {
-
-			outputMidiBus.sendNoteOn(0, (int) melody.get(note_index), vel);
+			
+			// play different midi instruments for when the original is playing versus the generated notes
+			if (!generating) {
+				outputMidiBus.sendNoteOn(0, (int) melody.get(note_index), vel);
+			} else if (generating) {
+				outputMidiBus.sendNoteOn(1, (int) melody.get(note_index), vel);
+			}
 			
 			// System.out.println("note on:" + note_index); //TODO: comment out when not debugging or not needed
 

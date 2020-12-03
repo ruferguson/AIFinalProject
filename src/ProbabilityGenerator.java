@@ -1,5 +1,5 @@
 /* Ru Ferguson
- * 28 September 2020
+ * 3 December 2020
  * 
  * This is the probability generator from Project 1. Trains and generates values from a
  * probability distribution. */

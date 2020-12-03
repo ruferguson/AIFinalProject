@@ -1,21 +1,20 @@
 /* Ru Ferguson
- * 24 November 2020
- * This project creates and prints prediction suffix trees based on ArrayList<T> inputs and
- * also implements Pmin elimination.
+ * 3 December 2020
+ * This project trains from a midi file and generates musical melodies using a prediction suffix tree machine
+ * learning algorithm. The PST also implements R-elimination to reduce redundancy. This project was developed
+ * through pseudo code by Courtney Brown and implements her MelodyPlayer.java and MidiToFileNotes.java classes.
+ * This code also uses Posenet through Runway and contains setup code from those tutorial files. The MIDI files
+ * are from bitmidi.com
  * 
+ * To run this program, make sure you have downloaded Runway from RunwayML.com and you have opened and started
+ * the Posenet application. In addition, you must also have a virtual MIDI player downloaded and running, such as
+ * Kontakt. Please select 2 instruments before beginning. Once both of those applications are open and running, you
+ * are all set to run the project.
  */
 
 import processing.core.*;
 import processing.data.JSONArray;
 import processing.data.JSONObject;
-
-import java.util.*; 
-
-//importing the JMusic stuff
-import jm.music.data.*;
-import jm.JMC;
-import jm.util.*;
-import jm.midi.*;
 
 import java.io.UnsupportedEncodingException;
 import java.net.*;
@@ -37,7 +36,6 @@ public class AIFinalProject extends PApplet {
 	JSONArray humans;
 	
 	PVector curPos, prevPos;
-	
 	float curXPos;
 	float curYPos;
 	float prevXPos;
@@ -95,13 +93,15 @@ public class AIFinalProject extends PApplet {
 		player.setMelody(midiNotes.getPitchArray());
 		player.setRhythm(midiNotes.getRhythmArray());
 
+		// initialize variables for motion capture
 		curPos = new PVector(0, 0);
 		prevPos = new PVector(0, 0);
 		prevVel = 0;
 		prevAccel = 0;
 		jerk = 0;
-		jerkThresh = (float) 0.80;
+		jerkThresh = (float) 0.50;
 				
+		// set up OSC
 		frameRate(25);
 		OscProperties properties = new OscProperties();
 		properties.setRemoteAddress("127.0.0.1", 57200);
@@ -120,12 +120,13 @@ public class AIFinalProject extends PApplet {
 	
 
 	public void draw() {
-	    player.play();		//play each note in the sequence -- the player will determine whether is time for a note onset
+	    player.play();		// play each note in the sequence -- the player will determine whether is time for a note onset
 	    genPlayer.play();
 	    background(0);
-	    showInstructions();
-	    calcJerk();
-	    motionBang();
+	    showInstructions(); // show/hide the instructions
+	    calcJerk(); //  calculate the jerk
+	    drawControlPoint(); // draw where the right hand is
+	    motionBang(); // test jerk to see if we should generate a new melody 
 	}
 
 	//this finds the absolute path of a file
@@ -133,7 +134,6 @@ public class AIFinalProject extends PApplet {
 		String filePath = "";
 		try {
 			filePath = URLDecoder.decode(getClass().getResource(path).getPath(), "UTF-8");
-
 		} catch (UnsupportedEncodingException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -162,6 +162,7 @@ public class AIFinalProject extends PApplet {
 		}
 	}
 	
+	// check if jerk is above the set threshold to generate new notes
 	void motionBang() {
 		jerk = abs(jerk);
 		if (jerk > jerkThresh) {
@@ -171,6 +172,7 @@ public class AIFinalProject extends PApplet {
 		}
 	}
 	
+	// check which song is playing
 	public void checkSong() {
 		if (jupiter) {
 			filePath = getPath("mid/holst_jupiter.mid"); 
@@ -195,6 +197,7 @@ public class AIFinalProject extends PApplet {
 		}
 	}
 	
+	// connect the OSC
 	void connect() {
 		OscMessage m = new OscMessage("/server/connect");
 		oscP5.send(m, myBroadcastLocation);
@@ -207,6 +210,7 @@ public class AIFinalProject extends PApplet {
 		data = parseJSONObject(dataString);	// We then parse it as a JSONObject
 	}
 	
+	// update the positional variables based on motion
 	void updatePosition() {
 		if (data != null) {
 		    humans = data.getJSONArray("poses");
@@ -217,11 +221,11 @@ public class AIFinalProject extends PApplet {
 			  prevYPos = curYPos;
 			  curXPos = point.getFloat(0);
 			  curYPos = point.getFloat(1);
-		      drawControlPoint();
 		    }
 		}
 	}
 	
+	// calculate the jerk
 	void calcJerk() {
 		updatePosition();
 		curPos.set(curXPos, curYPos);
@@ -235,11 +239,10 @@ public class AIFinalProject extends PApplet {
 			curAccel = prevVel - curVel; // calculate current acceleration
 			
 			jerk = prevAccel - curAccel; // calculate current jerk
-			//System.out.println("curPos: " + curPos + " prevPos: " + prevPos + " curVel: " + curVel + " prevVel: " + prevVel + " curAccel: " + curAccel + " prevAccel: " + prevAccel + " jerk: " + jerk);                              
 	    }
 	}
 	
-	// A function to draw humans body parts as circles
+	// draw the right wrist as a circle
 	void drawControlPoint() {
 		// right wrist ID = 10
 		generating = genPlayer.isGenerating();

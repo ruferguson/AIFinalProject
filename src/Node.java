@@ -1,5 +1,5 @@
 /* Ru Ferguson
- * 24 November 2020
+ * 3 December 2020
  * 
  * This class creates Node objects which each represent one node in the prediction suffix tree.
  * Nodes can also be removed using Pmin or R elimination. This class extends the Probability Generator

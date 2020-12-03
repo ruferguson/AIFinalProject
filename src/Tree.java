@@ -1,5 +1,5 @@
 /* Ru Ferguson
- * 24 November 2020
+ * 3 December 2020
  * 
  * This class holds the root node and interacts with the tree via the root node. The tree does not
  * perform actions of adding nodes or traversing the tree beyond its calls to the root node. 
